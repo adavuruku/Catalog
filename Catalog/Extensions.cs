@@ -5,6 +5,8 @@ namespace Catalog
 {
     public static class Extensions
     {
+        //prop ctorp
+        
         public static ItemDto AsDto(this Item item)
         {
             return new ItemDto

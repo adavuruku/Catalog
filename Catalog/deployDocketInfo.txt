@@ -1,0 +1,124 @@
+#Add docker to exisitng project
+right click project and select [Docker Support]
+select the enviroment of docker you want [Linux/window] window prefered
+to deploy the docker type in command
+
+docker build -t <project image name>:<tag name> .
+
+e.g
+docker build -t catalog:v1 .
+
+#add docker to new project
+In creating the project select docker integration and then select the environment
+this will initiate the docker deployment file for you to process the deployement
+
+#to add docker to exisitng project using bt creating docker file
+Also you can create dockerFile -> Dockerfile and write you docker documentation
+
+#setting up the docker network to connets to mongo
+ docker network create <networkname> 
+ to check if its created
+ docker network ls
+ 
+ #add a mongo db to docker with username and password
+ docker run -d --rm --name mongo -p 27018:27017 -v mongodbdata:/data/db -e MONGO_INITDB_ROOT_USERNAME=mongoadmin -e MONGO_INITDB_ROOT_PASSWORD=root
+ Note the port reads -> #to change the default port of the mongodb on docker
+ <host port>:<mongo db port on docker>
+ 
+ to connect to it from any  windows app now
+ use port:27018
+ 
+ 
+ set the mongo to run on a network
+ docker run -d --rm --name mongo -p 27018:27017 -v mongodbdata:/data/db -e MONGO_INITDB_ROOT_USE
+ RNAME=mongoadmin -e MONGO_INITDB_ROOT_PASSWORD=root --network=net5tutorial mongo
+
+ 
+ #########################################################
+ 
+#remove existing mongodb install in docker / or emove volume of exisitng container
+
+sudo docker stop <container>
+sudo docker rm <container>
+sudo docker volume rm <volume>
+
+
+#adding value to environment variables
+dotnet user-secrets set MongoDbSettings:Password root
+
+
+
+//deployment file
+#1. from build to publish to deploy
+FROM mcr.microsoft.com/dotnet/aspnet:5.0 AS base
+WORKDIR /app
+EXPOSE 80
+EXPOSE 443
+
+FROM mcr.microsoft.com/dotnet/sdk:5.0 AS build
+WORKDIR /src
+COPY ["Catalog.csproj", "./"]
+RUN dotnet restore "Catalog.csproj"
+COPY . .
+RUN dotnet build "Catalog.csproj" -c Release -o /app/build
+
+FROM build AS publish
+RUN dotnet publish "Catalog.csproj" -c Release -o /app/publish
+
+FROM base AS final
+WORKDIR /app
+COPY --from=publish /app/publish .
+ENTRYPOINT ["dotnet", "Catalog.dll"]
+
+2. from build to deploy
+FROM mcr.microsoft.com/dotnet/aspnet:5.0 AS base
+WORKDIR /app
+EXPOSE 80
+
+FROM mcr.microsoft.com/dotnet/sdk:5.0 AS build
+WORKDIR /src
+COPY ["Catalog.csproj", "./"]
+RUN dotnet restore "Catalog.csproj"
+COPY . .
+RUN dotnet build "Catalog.csproj" -c Release -o /app/build
+
+FROM base AS final
+WORKDIR /app
+COPY --from=build /app/publish .
+ENTRYPOINT ["dotnet", "Catalog.dll"]
+
+#run the image
+docker run -it --rm -p 8080:80 -e MongoDbSettings:Host=mongo -e MongoDbSettings:Password=root -e MongoDbSettings:Port=27017 --network=net5tutorial catalog:v1
+
+Explain
+
+-it -> interactive mode to hook the container to docker for logs
+
+--rm -> so the container get remove from docker container anytime we stop the container
+-p to set the port for the catalog <host machine port>:<docker machine port for the app container> :note at default .net uses port 80
+-e [EnvironmentVariables]:[Setting Name]=[Setting Value] -> setting all environment variable the app need to work with in production
+-e MongoDbSettings:Host=mongo :-> we set the host so it can overrite the one we specify on application.json 
+and we set it to mongo -> the docker container of our mongodb
+-e MongoDbSettings:Password=root : we specify the password as usual to the env variable
+Note: we are not setting the db user -> so dotnet in docker will use the one specify in application.json -> so you only need to specify a new one if you want to
+oveerite the ones in application.json
+--network : to specify the netwprk the container will run #here we put it on same network we put the mongo container so they can communicate
+
+catalog:v1 -> the image you want to run
+
+finally the .net in docker will run the project using the specifications in ENTRYPOINT ["dotnet", "Catalog.dll"]
+of Dockerfile
+
+e.x dotnet Catalog.dll
+
+############
+deploying to docker hub for anyusers to use
+1. login to docker hub -> docker login -> then provide username and password
+2. docker tag catalog:v1 sherifadavuruku/catalog:v1 
+note: docker tag <tag of container in your local catalog> <the new tag to give it in online catalog hub> i.e <username>/<tag name of your choice -> is not required to be same with the local one>
+3. then push the new image to docker hub -> thois will push all the images use in deploying the catalog container .net asp ,sdk and others 
+docker push sherifadavuruku/catalog:v1
+
+ochestrator
+
+Kubernetes: ocntrol flow among different node (docker)

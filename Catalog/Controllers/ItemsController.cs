@@ -28,6 +28,8 @@ namespace Catalog.Controllers
             //var items = _repository.GetItems();
             //return items;
             
+            //return await Task.FromResult(items); for async
+            
             //using dtos
            /* var items = _repository.GetItems().Select((item => new ItemDto
             {
